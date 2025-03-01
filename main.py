@@ -38,7 +38,11 @@ hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
 
 passenger_img = images_dict['passenger']
 passenger_rect = passenger_img.get_rect()
-passenger_rect.x, passenger_rect.y = hotel_rect.x, hotel_rect.y + hotel_rect.height
+passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
+while passenger_rect.x == hotel_rect.x and passenger_rect.y == hotel_rect.y:
+    passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
+passenger_rect.y += hotel_rect.height
+pas_position = passenger_rect.x, passenger_rect.y
 passenger_picked = False
 
 parking_img = images_dict['taxi_background']
@@ -58,23 +62,18 @@ def is_crash():
         return True
     return False
 
-def pickup():
-    if parking_rect.colliderect(player_rect):
-        return True
-    return False
 
-def reach_goal():
-    if not (hotel_rect.y - 200 < player_rect.y < hotel_rect.y + 200 and hotel_rect.x - 200 < player_rect.x < hotel_rect.x + 200):
-        for x in range(player_rect.x, player_rect.topright[0], 1):
-            for y in range(player_rect.y, player_rect.bottomleft[1], 1):
-                try:
-                    if (screen.get_at((x, y)) == (53, 181, 53) or
-                            screen.get_at((x,y)) == (58, 58, 186) or
-                            screen.get_at((x,y)) == (185, 185, 57) or
-                            screen.get_at((x,y)) == (184, 55, 55)):
-                        return True
-                except:
-                    print("Oops")
+def draw_message(text, color):
+    font = pg.font.SysFont(None, 36)
+    message = font.render(text, True, color)
+    screen.blit(message, (350, 150))
+    pg.display.flip()
+    pg.time.delay(1000)
+
+
+def pickup():
+    if passenger_rect.colliderect(player_rect):
+        return True
     return False
 
 pg.init()
@@ -109,11 +108,32 @@ while run:
 
     if is_crash():
         print("CRASH")
-    if not passenger_picked:
-        passenger_picked = pickup()
+        player_view = 'rear'
+        player_rect.x = 300
+        player_rect.y = 300
+        passenger_picked = False
+        passenger_rect.x, passenger_rect.y = pas_position
+        continue
+    if parking_rect.contains(player_rect):
+        passenger_rect.x = hotel_rect.x
+        passenger_rect.y = hotel_rect.y + hotel_rect.height
+        passenger_picked = False
+        screen.blit(passenger_img, passenger_rect)
+        draw_message("You won", pg.Color("green"))
+        player_view = 'rear'
+        player_rect.x = 300
+        player_rect.y = 300
+        hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
+        parking_rect.x, parking_rect.y = hotel_rect.x, hotel_rect.y + hotel_rect.height
+        passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
+        while passenger_rect.x == hotel_rect.x and passenger_rect.y == hotel_rect.y:
+            passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
+        passenger_rect.y += hotel_rect.height
+        pas_position = passenger_rect.x, passenger_rect.y
     if passenger_picked:
         passenger_rect.x, passenger_rect.y = player_rect.x, player_rect.y
-        passenger_picked = not reach_goal()
+    if not passenger_picked:
+        passenger_picked = pickup()
 
     screen.fill(BLACK)
     screen.blit(images_dict['bg'], (0, 0))
