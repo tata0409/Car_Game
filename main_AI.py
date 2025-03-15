@@ -1,5 +1,7 @@
 import pygame as pg
 import random
+import numpy as np
+from collections import defaultdict
 
 width, height = 700, 450
 FPS = 60
@@ -50,16 +52,77 @@ parking_img = images_dict['parking']
 parking_rect = parking_img.get_rect()
 parking_rect.x, parking_rect.y = hotel_rect.x, hotel_rect.y + hotel_rect.height
 
+##################
+actions = [0, 1, 2, 3]
+Q_table = defaultdict(lambda: [0 ,0 ,0 ,0])
+learning_rate = 0.9
+discount_factor = 0.9
+epsilon = 0.1
+
+
+def update_Q(state, action, reward,next_state):
+    best_next = max(Q_table(next_state))
+    Q_table[state][action] += learning_rate * (reward + discount_factor * best_next - Q_table[state][action])
+
+
+def make_step():
+    current_state = (player_rect.x, player_rect.y)
+    action = choose_action(current_state)
+    apply_action(action)
+    reward = -1
+    episode_end = False
+    success = False
+    if is_crash():
+        reward = -100
+        episode_end = True
+    if parking_rect.contains((player_rect)):
+        reward = 100
+        success = True
+    next_state = (player_rect.x, player_rect.y)
+    update_Q(current_state, action, reward, next_state)
+    return (episode_end, success)
+
+
+
+def choose_action(state):
+    if random.random()<epsilon:
+        return random.choice(actions)
+    else:
+        return np.argmax(Q_table(state))
+
+##################
+
+
+def apply_action(action):
+    global player_view, x_direction, y_direction
+    x_direction, y_direction = 0, 0
+    if action == 0:
+        x_direction = 1
+        player_view = 'right'
+    elif action == 1:
+        x_direction = -1
+        player_view = 'left'
+    elif action == 2:
+        y_direction = -1
+        player_view = 'rear'
+    elif action == 3:
+        y_direction = 1
+        player_view = 'front'
+
 
 def is_crash():
     for x in range(player_rect.x, player_rect.topright[0], 1):
         for y in range(player_rect.y, player_rect.bottomleft[1], 1):
             try:
                 if screen.get_at((x, y)) == (220, 215, 177):
+                    reward = -100
+                    episode_end = True
                     return True
             except:
                 print("Oops")
     if hotel_rect.colliderect(player_rect):
+        reward = -100
+        episode_end = True
         return True
     return False
 
@@ -88,19 +151,19 @@ while run:
         if event.type == pg.QUIT:
             run = False
 
-    keys_klava = pg.key.get_pressed()
-    if keys_klava[pg.K_RIGHT] and player_rect.x < width - player_rect.width:
-        x_direction = 1
-        player_view = 'right'
-    elif keys_klava[pg.K_LEFT] and player_rect.x > 0:
-        x_direction = -1
-        player_view = 'left'
-    elif keys_klava[pg.K_UP] and player_rect.y > 0:
-        y_direction = -1
-        player_view = 'rear'
-    elif keys_klava[pg.K_DOWN] and player_rect.y <= height - player_rect.height:
-        y_direction = 1
-        player_view = 'front'
+    # keys_klava = pg.key.get_pressed()
+    # if keys_klava[pg.K_RIGHT] and player_rect.x < width - player_rect.width:
+    #     x_direction = 1
+    #     player_view = 'right'
+    # elif keys_klava[pg.K_LEFT] and player_rect.x > 0:
+    #     x_direction = -1
+    #     player_view = 'left'
+    # elif keys_klava[pg.K_UP] and player_rect.y > 0:
+    #     y_direction = -1
+    #     player_view = 'rear'
+    # elif keys_klava[pg.K_DOWN] and player_rect.y <= height - player_rect.height:
+    #     y_direction = 1
+    #     player_view = 'front'
 
     player_rect.x += player_speed * x_direction
     player_rect.y += player_speed * y_direction
@@ -114,6 +177,8 @@ while run:
         player_rect.y = 300
         passenger_picked = False
         passenger_rect.x, passenger_rect.y = pas_position
+        reward = -100
+        episode_end = True
         continue
     if parking_rect.contains(player_rect):
         passenger_rect.x = hotel_rect.x
@@ -124,6 +189,8 @@ while run:
         player_view = 'rear'
         player_rect.x = 300
         player_rect.y = 300
+        reward = 100
+        success = True
         hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
         parking_rect.x, parking_rect.y = hotel_rect.x, hotel_rect.y + hotel_rect.height
         passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
@@ -135,6 +202,7 @@ while run:
         passenger_rect.x, passenger_rect.y = player_rect.x, player_rect.y
     if not passenger_picked:
         passenger_picked = pickup()
+
 
     screen.fill(BLACK)
     screen.blit(images_dict['bg'], (0, 0))
