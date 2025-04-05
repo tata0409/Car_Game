@@ -4,7 +4,7 @@ import pygame as pg
 import random
 
 width, height = 700, 450
-FPS = 60
+FPS = 2
 
 BLACK = (0, 0, 0)
 
@@ -14,7 +14,7 @@ def start_positions():
     player_view = 'rear'
     player_rect.x = 300
     player_rect.y = 300
-    hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
+    #hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
     parking_rect.x, parking_rect.y = hotel_rect.x, hotel_rect.y + hotel_rect.height
     passenger_rect.x, passenger_rect.y = random.choice(hotel_positions)
     while passenger_rect.x == hotel_rect.x and passenger_rect.y == hotel_rect.y:
@@ -23,8 +23,6 @@ def start_positions():
 
 
 def draw():
-    if learned:
-        pg.time.delay(100)
     screen.fill(BLACK)
     screen.blit(images_dict['bg'], (0, 0))
     screen.blit(parking_img, parking_rect)
@@ -39,12 +37,10 @@ def is_crash():
         for y in range(player_rect.y, player_rect.bottomleft[1], 1):
             try:
                 if screen.get_at((x, y)) == (220, 215, 177):
-                    start_positions()
                     return True
             except IndexError:
                 print("Oops")
     if hotel_rect.colliderect(player_rect):
-        start_positions()
         return True
     return False
 
@@ -52,18 +48,18 @@ def is_crash():
 def apply_action(action):
     if action is None:
         return
-    global player_view, x_direction, y_direction
+    global player_view
     x_direction, y_direction = 0, 0
-    if action == 0 and player_rect.x <= width - player_rect.width:
+    if action == 0:
         x_direction = 1
         player_view = 'right'
-    elif action == 1 and player_rect.x > 0:
+    elif action == 1:
         x_direction = -1
         player_view = 'left'
-    elif action == 2 and player_rect.y > 0:
+    elif action == 2:
         y_direction = -1
         player_view = 'rear'
-    elif action == 3 and player_rect.y <= height - player_rect.height:
+    elif action == 3:
         y_direction = 1
         player_view = 'front'
 
@@ -71,6 +67,7 @@ def apply_action(action):
     new_y = player_rect.y + player_rect.height * y_direction
     if 0 < new_x <= width - player_rect.width and 0 < new_y <= height - player_rect.height:
         player_rect.x, player_rect.y = new_x, new_y
+
 
 
 
@@ -108,6 +105,7 @@ hotel_positions = [
     (60, 250),
     (440, 250)
 ]
+hotel_rect.x, hotel_rect.y = random.choice(hotel_positions)
 
 parking_img = images_dict['parking']
 parking_rect = parking_img.get_rect()
@@ -154,6 +152,7 @@ def make_step():
         reward = -100
         episode_end = True
     if parking_rect.contains(player_rect):
+        print("Win")
         reward = 100
         episode_end = True
         success = True
@@ -169,7 +168,7 @@ start_positions()
 learned = False
 draw()
 
-num_episodes = 3000
+num_episodes = 300
 max_steps = 50
 
 for episode in range(num_episodes):
@@ -202,24 +201,17 @@ while run:
     current_state = (player_rect.x, player_rect.y)
     action = choose_action(current_state)
     apply_action(action)
+    draw()
 
     if is_crash():
-        print("CRASH")
-        # run = False
-        start_positions()
-        reward = -100
-        episode_end = False
-        continue
+        draw_message("CRASH", pg.Color('red'))
+        run = False
+        break
 
     if parking_rect.contains(player_rect):
         draw_message("You won", pg.Color('green'))
         start_positions()
-        success = True
-        reward = 100
-        episode_end = True
-        continue
-    if player_rect.colliderect(passenger_rect):
-        passenger_rect.x, passenger_rect.y = player_rect.x, player_rect.y
-    draw()
+        run = False
+        break
 
 pg.quit()
